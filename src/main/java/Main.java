@@ -1,7 +1,11 @@
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.io.OutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
+import java.io.InputStreamReader;
+
 
 public class Main {
   public static void main(String[] args){
@@ -11,6 +15,9 @@ public class Main {
     	//Uncomment this block to pass the first stage
         ServerSocket serverSocket = null;
         Socket clientSocket = null;
+        BufferedReader reader = null;
+        BufferedWriter writer = null;
+        
         int port = 6379;
         try {
           serverSocket = new ServerSocket(port);
@@ -20,15 +27,24 @@ public class Main {
           // Wait for connection from client.
           clientSocket = serverSocket.accept();
           
-          OutputStream outputStream = clientSocket.getOutputStream();
-          outputStream.write("+PONG\r\n".getBytes());
+          reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+          writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
+          String clientMessage = reader.readLine();
+          
+          if("PING".equalsIgnoreCase(clientMessage)) {
+        	  writer.write("+PONG\r\n");
+        	  writer.flush();
+          }
+          
         } catch (IOException e) {
           System.out.println("IOException: " + e.getMessage());
         } finally {
           try {
-            if (clientSocket != null) {
-              clientSocket.close();
-            }
+        	// clean up
+    	    if (reader != null) reader.close();
+    	    if (writer != null) writer.close();
+    	    if (clientSocket != null) clientSocket.close();
+    	    if (serverSocket != null) serverSocket.close();
           } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
           }
