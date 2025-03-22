@@ -29,12 +29,15 @@ public class Main {
           
           reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
           writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
-          String clientMessage = parseRESP2(reader);
+          String clientMessage;
           
-          if("PING".equalsIgnoreCase(clientMessage)) {
-        	  writer.write("+PONG\r\n");
-        	  writer.flush();
+          while ((clientMessage = parseRESP2(reader)) != null) {
+        	  if ("PING".equalsIgnoreCase(clientMessage.trim())) {
+        		  writer.write("+PONG\r\n");
+            	  writer.flush();  
+        	  }
           }
+          
           
         } catch (IOException e) {
           System.out.println("IOException: " + e.getMessage());
