@@ -29,7 +29,7 @@ public class Main {
           
           reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
           writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
-          String clientMessage = reader.readLine();
+          String clientMessage = parseRESP2(reader);
           
           if("PING".equalsIgnoreCase(clientMessage)) {
         	  writer.write("+PONG\r\n");
@@ -50,4 +50,20 @@ public class Main {
           }
         }
   }
+  
+  // Parses only array type data (to be modified)
+  private static String parseRESP2(BufferedReader reader) throws IOException {
+	    String firstLine = reader.readLine();
+
+	    if (firstLine == null) {
+	        return null;
+	    }
+
+	    if (firstLine.startsWith("*")) {
+	        reader.readLine();
+	        return reader.readLine();
+	    }
+
+	    return firstLine;
+	}
 }
