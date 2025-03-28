@@ -9,8 +9,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import protocol.RESPParser;
+import store.DataStore;
 
 public class Main {
 	public static void main(String[] args) {
@@ -23,6 +25,7 @@ public class Main {
 		Selector selector = null;
 		HashSet<SocketChannel> clients = new HashSet<>();
 		ByteBuffer buffer = ByteBuffer.allocate(256);
+		DataStore store = new DataStore();
 
 		int port = 6379;
 		try {
@@ -78,6 +81,20 @@ public class Main {
 									String argument = commandParts.get(1);
 									String response = "$" + argument.length() + "\r\n" + argument + "\r\n";
 									client.write(ByteBuffer.wrap(response.getBytes()));
+								} else if ("SET".equalsIgnoreCase(command) && commandParts.size() == 3) {
+									String k = commandParts.get(1);
+									String v = commandParts.get(2);
+									store.set(k, v);
+									client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
+								} else if ("GET".equalsIgnoreCase(command) && commandParts.size() == 2) {
+									String k = commandParts.get(1);
+									String v = (String) store.get(k);
+									if (v != null) {
+										String response = "$" + v.length() + "\r\n" + v + "\r\n";
+										client.write(ByteBuffer.wrap(response.getBytes()));
+									} else {
+										client.write(ByteBuffer.wrap("-1\r\n".getBytes()));
+									}
 								}
 							}
 
