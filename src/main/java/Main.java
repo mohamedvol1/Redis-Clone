@@ -9,12 +9,15 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 
 import protocol.RESPParser;
 import store.DataStore;
 
 public class Main {
+	private static final int CLEANUP_INTERVAL_MS = 100;
+	private static final int SAMPLE_SIZE = 20;
+	private static final int EXPIRY_THRESHOLD = 25;
+
 	public static void main(String[] args) {
 		// You can use print statements as follows for debugging, they'll be visible
 		// when running tests.
@@ -26,6 +29,7 @@ public class Main {
 		HashSet<SocketChannel> clients = new HashSet<>();
 		ByteBuffer buffer = ByteBuffer.allocate(256);
 		DataStore store = new DataStore();
+		long lastCleanupTime = System.currentTimeMillis();
 
 		int port = 6379;
 		try {
@@ -39,7 +43,13 @@ public class Main {
 			serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
 			while (true) {
-				if (selector.select() == 0) {
+				long currentTimeInMillis = System.currentTimeMillis();
+				if (currentTimeInMillis > lastCleanupTime + CLEANUP_INTERVAL_MS) {
+					store.activeExpiryCycle(SAMPLE_SIZE, EXPIRY_THRESHOLD);
+					lastCleanupTime = currentTimeInMillis;
+				}
+
+				if (selector.select(100) == 0) {
 					continue;
 				}
 
@@ -62,7 +72,7 @@ public class Main {
 								// Server disconnected
 								Socket socket = client.socket();
 								String clientInfo = socket.getInetAddress().getHostAddress() + ":" + socket.getPort();
-								System.out.println("Disconneted: " + clientInfo);
+								System.out.println("Disconnected: " + clientInfo);
 								client.close();
 								clients.remove(client);
 								continue;
@@ -86,6 +96,25 @@ public class Main {
 									String v = commandParts.get(2);
 									store.set(k, v);
 									client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
+								} else if ("SET".equalsIgnoreCase(command) && "PX".equalsIgnoreCase(commandParts.get(3))
+										&& commandParts.size() == 5) {
+									String k = commandParts.get(1);
+									String v = commandParts.get(2);
+									String expTime = commandParts.get(4);
+
+									if (k == null || v == null || expTime == null) {
+										client.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
+									}
+
+									long timeMillis = Long.parseLong(expTime);
+
+									if (timeMillis <= 0) {
+										client.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
+									} else {
+										store.set(k, v, timeMillis);
+										client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
+									}
+
 								} else if ("GET".equalsIgnoreCase(command) && commandParts.size() == 2) {
 									String k = commandParts.get(1);
 									String v = (String) store.get(k);
@@ -93,7 +122,7 @@ public class Main {
 										String response = "$" + v.length() + "\r\n" + v + "\r\n";
 										client.write(ByteBuffer.wrap(response.getBytes()));
 									} else {
-										client.write(ByteBuffer.wrap("-1\r\n".getBytes()));
+										client.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
 									}
 								}
 							}
