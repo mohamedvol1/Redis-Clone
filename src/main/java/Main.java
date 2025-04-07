@@ -10,6 +10,7 @@ import java.nio.channels.SelectionKey;
 import java.util.HashSet;
 import java.util.List;
 
+import config.Config;
 import protocol.RESPParser;
 import store.DataStore;
 
@@ -23,7 +24,7 @@ public class Main {
 		// when running tests.
 		System.out.println("Logs from your program will appear here!");
 
-		// Uncomment this block to pass the first stage
+		Config config = new Config(args);
 		ServerSocketChannel serverSocketChannel = null;
 		Selector selector = null;
 		HashSet<SocketChannel> clients = new HashSet<>();
@@ -123,6 +124,29 @@ public class Main {
 										client.write(ByteBuffer.wrap(response.getBytes()));
 									} else {
 										client.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
+									}
+								} else if ("CONFIG".equalsIgnoreCase(command) && commandParts.size() >= 3) {
+									if ("GET".equalsIgnoreCase(commandParts.get(1))) {
+										List<String> params = commandParts.subList(2, commandParts.size());
+										StringBuilder response = new StringBuilder();
+										response.append("*").append(2 * params.size()).append("\r\n");
+
+										for (String param : params) {
+											String value = config.get(param);
+											if (value != null) {
+												response.append("$").append(param.length()).append("\r\n").append(param)
+														.append("\r\n");
+												response.append("$").append(value.length()).append("\r\n").append(value)
+														.append("\r\n");
+											} else {
+												// Error response
+												response.append("$").append(param.length()).append("\r\n").append(param)
+														.append("\r\n");
+												response.append("$-1\r\n");
+											}
+										}
+
+										client.write(ByteBuffer.wrap(response.toString().getBytes()));
 									}
 								}
 							}
