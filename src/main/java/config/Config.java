@@ -21,12 +21,11 @@ public class Config {
 				} else if ("--dbfilename".equals(flag)) {
 					configMap.put("dbfilename", value);
 				}
-			}
-			
-			// default values
-			configMap.putIfAbsent("dir", "/tmp/redis-files");
-			configMap.putIfAbsent("dbfilename", "dump.rdb");
+			}			
 		}
+		// default values
+		configMap.putIfAbsent("dir", "/tmp/redis-files");
+		configMap.putIfAbsent("dbfilename", "dump.rdb");
 	}
 	
 	public String get(String param) {

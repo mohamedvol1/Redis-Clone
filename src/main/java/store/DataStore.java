@@ -1,6 +1,8 @@
 package store;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -64,6 +66,23 @@ public class DataStore {
 			System.out.println("High expiration rate detected: " + expired + "/" + sampled);
 			// Could trigger additional cleanup here, but we'll keep it simple for now
 		}
+	}
+	
+	public void load(Map<String, String> data) {
+		for (Map.Entry<String, String> entry : data.entrySet()) {
+			store.put(entry.getKey(), new Entry(entry.getValue()));
+		}
+	}
+	
+	public List<String> getAllKeys() {
+		List<String> keys = new ArrayList<>();
+		for (String key : store.keySet()) {
+			if(!store.get(key).isExpired() ) {
+				keys.add(key);
+			}
+		}
+		
+		return keys;
 	}
 
 }
