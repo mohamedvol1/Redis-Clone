@@ -68,10 +68,8 @@ public class DataStore {
 		}
 	}
 	
-	public void load(Map<String, String> data) {
-		for (Map.Entry<String, String> entry : data.entrySet()) {
-			store.put(entry.getKey(), new Entry(entry.getValue()));
-		}
+	public void load(Map<String, Entry> data) {
+		store.putAll(data);
 	}
 	
 	public List<String> getAllKeys() {

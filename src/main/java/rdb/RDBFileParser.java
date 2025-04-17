@@ -7,6 +7,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
+import store.Entry;
 
 public class RDBFileParser {
 
@@ -20,8 +21,8 @@ public class RDBFileParser {
 	private static final byte FILE_END_BYTE = (byte) 0xFF;
 	private static final int STRING_VALUE_TYPE = 0;
 
-	public static Map<String, String> parseFile(String filePath) throws IOException {
-		Map<String, String> dataStore = new HashMap<>();
+	public static Map<String, Entry> parseFile(String filePath) throws IOException {
+		Map<String, Entry> dataStore = new HashMap<>();
 		try (FileInputStream fis = new FileInputStream(filePath)) {
 			FileChannel ch = fis.getChannel();
 			ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
@@ -58,7 +59,7 @@ public class RDBFileParser {
 		}
 	}
 
-	private static void parseDataBaseSection(ByteBuffer buffer, Map<String, String> dataStore) throws IOException {
+	private static void parseDataBaseSection(ByteBuffer buffer, Map<String, Entry> dataStore) throws IOException {
 		int index = readEncodedSize(buffer);
 		if (index != 0) {
 			throw new IOException("Only database 0 is supported, got " + index);
@@ -77,14 +78,20 @@ public class RDBFileParser {
 		}
 	}
 
-	private static void parseData(ByteBuffer b, Map<String, String> ds) throws IOException {
+	private static void parseData(ByteBuffer b, Map<String, Entry> ds) throws IOException {
+		long expiryTimeInMillis = -1;
 		byte nextByte = b.get();
 		if (nextByte == EX_TIME_SECONDS_BYTE) {
-			b.position(b.position() + 4);
+            byte[] bytes = new byte[4];
+            b.get(bytes);
+            long seconds = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL; // Read expiry seconds
+            expiryTimeInMillis = seconds * 1000; 
 		} else if (nextByte == EX_TIME_MILLISECONDS_BYTE) {
-			b.position(b.position() + 8);
+            byte[] bytes = new byte[8];
+            b.get(bytes);
+            expiryTimeInMillis = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).getLong(); // Read 8 byte milliseconds
 		} else {
-			b.position(b.position() - 1); // no expiry
+			b.position(b.position() - 1); // No expiry
 		}
 
 		int valueType = b.get();
@@ -94,7 +101,8 @@ public class RDBFileParser {
 
 		String key = readEncodedString(b);
 		String value = readEncodedString(b);
-		ds.put(key, value);
+		Entry entry = (expiryTimeInMillis == -1) ? new Entry(value) : new Entry(value, expiryTimeInMillis);
+		ds.put(key, entry);
 	}
 
 	private static void verifyFileEnd(ByteBuffer b) throws IOException {
