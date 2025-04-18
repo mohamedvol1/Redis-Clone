@@ -21,7 +21,7 @@ public class Config {
 				} else if ("--dbfilename".equals(flag)) {
 					configMap.put("dbfilename", value);
 				} else if ("--port".equals(flag)) {
-					configMap.put("p", value);
+					configMap.put("port", value);
 				}
 			}			
 		}
