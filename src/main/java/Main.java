@@ -52,8 +52,9 @@ public class Main {
 		HashSet<SocketChannel> clients = new HashSet<>();
 		ByteBuffer buffer = ByteBuffer.allocate(256);
 		long lastCleanupTime = System.currentTimeMillis();
+		int port = Integer.parseInt(config.get("port"));
+		System.out.println("Starting Redis server on port " + port);
 
-		int port = 6379;
 		try {
 
 			serverSocketChannel = ServerSocketChannel.open();

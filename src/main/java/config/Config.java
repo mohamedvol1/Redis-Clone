@@ -20,12 +20,15 @@ public class Config {
 					configMap.put("dir", value);
 				} else if ("--dbfilename".equals(flag)) {
 					configMap.put("dbfilename", value);
+				} else if ("--port".equals(flag)) {
+					configMap.put("p", value);
 				}
 			}			
 		}
 		// default values
 		configMap.putIfAbsent("dir", "/tmp/redis-files");
 		configMap.putIfAbsent("dbfilename", "dump.rdb");
+		configMap.putIfAbsent("port", "6379");
 	}
 	
 	public String get(String param) {
