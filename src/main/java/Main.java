@@ -178,6 +178,10 @@ public class Main {
 										response.append("$").append(k.length()).append("\r\n").append(k).append("\r\n");
 									}
 									client.write(ByteBuffer.wrap(response.toString().getBytes()));
+								} else if ("INFO".equalsIgnoreCase(command) && commandParts.size() == 2 && "replication".equalsIgnoreCase(commandParts.get(1))) {
+									String response = "role:master";
+									String bulkString = "$" + response.length() + "\r\n" + response + "\r\n";
+									client.write(ByteBuffer.wrap(bulkString.toString().getBytes()));
 								}
 							}
 						}
