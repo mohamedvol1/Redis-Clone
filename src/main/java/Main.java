@@ -48,6 +48,20 @@ public class Main {
 		} else {
 			System.out.println("RDB file not found, starting with an empty database.");
 		}
+		
+		String replicaof = config.get("replicaof");
+		
+		if (replicaof != null) {
+			String[] masterInfo = replicaof.split(" ");
+			 
+			if (masterInfo.length == 2) {
+				String host = masterInfo[0];
+				int port = Integer.parseInt(masterInfo[1]);
+				connectToMaster(host, port);
+			} else {
+				System.out.println("Invalide replica formate. Expected: <host> <port>");
+			}
+		}
 
 		ServerSocketChannel serverSocketChannel = null;
 		Selector selector = null;
@@ -218,5 +232,21 @@ public class Main {
 				System.out.println("IOException: " + e.getMessage());
 			}
 		}
+	}
+	private static void connectToMaster(String host, int port) {
+		try {
+			System.out.println("Connecting to master at " + host + ":" + port + " ...");
+			
+			SocketChannel masterChannel = SocketChannel.open();
+			masterChannel.connect(new InetSocketAddress(host, port));
+			String pingCommand = "*1\r\n$4\r\nPING\r\n";
+			ByteBuffer pingBuffer = ByteBuffer.wrap(pingCommand.getBytes());
+			masterChannel.write(pingBuffer);
+			
+			System.out.println("Sent PING to master");
+		} catch (IOException e) {
+			System.out.println("Faild to connect to master: " + e.getMessage());
+		}
+		
 	}
 }
