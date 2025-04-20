@@ -22,6 +22,8 @@ public class Main {
 	private static final int CLEANUP_INTERVAL_MS = 100;
 	private static final int SAMPLE_SIZE = 20;
 	private static final int EXPIRY_THRESHOLD = 25;
+	private static final String MASTER_REPLICATION_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
+	private static final int MASTER_REPLICATION_OFFSET = 0;
 
 	public static void main(String[] args) {
 		// You can use print statements as follows for debugging, they'll be visible
@@ -180,8 +182,15 @@ public class Main {
 									client.write(ByteBuffer.wrap(response.toString().getBytes()));
 								} else if ("INFO".equalsIgnoreCase(command) && commandParts.size() == 2 && "replication".equalsIgnoreCase(commandParts.get(1))) {
 									String role = config.get("replicaof") != null ? "slave" : "master";  
-									String response = "role:" + role;
-									String bulkString = "$" + response.length() + "\r\n" + response + "\r\n";
+									StringBuilder response = new StringBuilder();
+									response.append("role:").append(role).append("\r\n");
+									
+									if ("master".equals(role)) {
+										response.append("master_replid:").append(MASTER_REPLICATION_ID);
+										response.append("master_repl_offset:").append(MASTER_REPLICATION_OFFSET);
+									}
+									
+									String bulkString = "$" + response.length() + "\r\n" + response.toString() + "\r\n";
 									client.write(ByteBuffer.wrap(bulkString.toString().getBytes()));
 								}
 							}
