@@ -179,7 +179,8 @@ public class Main {
 									}
 									client.write(ByteBuffer.wrap(response.toString().getBytes()));
 								} else if ("INFO".equalsIgnoreCase(command) && commandParts.size() == 2 && "replication".equalsIgnoreCase(commandParts.get(1))) {
-									String response = "role:master";
+									String role = config.get("replicaof") != null ? "slave" : "master";  
+									String response = "role:" + role;
 									String bulkString = "$" + response.length() + "\r\n" + response + "\r\n";
 									client.write(ByteBuffer.wrap(bulkString.toString().getBytes()));
 								}
