@@ -57,7 +57,9 @@ public class Main {
 			if (masterInfo.length == 2) {
 				String host = masterInfo[0];
 				int port = Integer.parseInt(masterInfo[1]);
-				connectToMaster(host, port);
+				int replicaPort = Integer.parseInt(config.get("port"));
+				
+				connectToMaster(host, port, replicaPort);
 			} else {
 				System.out.println("Invalide replica formate. Expected: <host> <port>");
 			}
@@ -233,17 +235,53 @@ public class Main {
 			}
 		}
 	}
-	private static void connectToMaster(String host, int port) {
+	
+	private static void connectToMaster(String host, int port, int replPort) {
 		try {
 			System.out.println("Connecting to master at " + host + ":" + port + " ...");
 			
+			// Send PING to master # 1
 			SocketChannel masterChannel = SocketChannel.open();
 			masterChannel.connect(new InetSocketAddress(host, port));
 			String pingCommand = "*1\r\n$4\r\nPING\r\n";
 			ByteBuffer pingBuffer = ByteBuffer.wrap(pingCommand.getBytes());
 			masterChannel.write(pingBuffer);
-			
 			System.out.println("Sent PING to master");
+			
+			// Read PONG response from master
+			ByteBuffer responseBuffer = ByteBuffer.allocate(10240);
+			int bytesRead = masterChannel.read(responseBuffer);
+			responseBuffer.flip();
+			String pingResponse = new String(responseBuffer.array(), 0, bytesRead);
+			System.out.println("Received reponse from master: " + pingResponse);
+			responseBuffer.clear();
+			
+			// Send REPLCONF with listening port # 2
+			String replPortString = String.valueOf(replPort);
+			String replConfCommand = "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n" + replPortString + "\r\n";
+			ByteBuffer replConfBuffer = ByteBuffer.wrap(replConfCommand.getBytes());
+			masterChannel.write(replConfBuffer);
+			System.out.println("Sent REPLCONF with listening port to master");
+			
+			// Read REPLCONF response
+			bytesRead = masterChannel.read(responseBuffer);
+			responseBuffer.flip();
+			String replConfResponse = new String(responseBuffer.array(), 0, bytesRead);
+			System.out.println("Recieved response from master: " + replConfResponse);
+			responseBuffer.clear();
+			
+			// Send REPLCONF with capa psync2 arguments # 3
+			String replConfCapaCommand = "*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n";
+			ByteBuffer replConfCapaBuffer = ByteBuffer.wrap(replConfCapaCommand.getBytes());
+			masterChannel.write(replConfCapaBuffer);
+			System.out.println("Sent REPLCONF with capa psync2 arguments to master");
+			
+			// Read master response
+			bytesRead = masterChannel.read(responseBuffer);
+			responseBuffer.flip();
+			String replConfCapaResponse = new String(responseBuffer.array(), 0, bytesRead);
+			System.out.println("Recieved response from master: " + replConfCapaResponse);
+			
 		} catch (IOException e) {
 			System.out.println("Faild to connect to master: " + e.getMessage());
 		}
