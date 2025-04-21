@@ -282,6 +282,12 @@ public class Main {
 			String replConfCapaResponse = new String(responseBuffer.array(), 0, bytesRead);
 			System.out.println("Recieved response from master: " + replConfCapaResponse);
 			
+			// Send PSYNC command
+			String psyncCommand = "*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n";
+			ByteBuffer psyncBuffer = ByteBuffer.wrap(psyncCommand.getBytes());
+			masterChannel.write(psyncBuffer);
+			System.out.println("Sent PSYNC command to master");
+			
 		} catch (IOException e) {
 			System.out.println("Faild to connect to master: " + e.getMessage());
 		}
