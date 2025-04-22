@@ -184,6 +184,9 @@ public class Main {
 									client.write(ByteBuffer.wrap(bulkString.toString().getBytes()));
 								} else if ("REPLCONF".equalsIgnoreCase(command)) {
                                     client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
+                                } else if ("PSYNC".equalsIgnoreCase(command) && commandParts.size() == 3) {
+                                	String response = "+FULLRESYNC " + MASTER_REPLICATION_ID + " " + MASTER_REPLICATION_OFFSET + "\r\n";
+                                    client.write(ByteBuffer.wrap(response.getBytes()));
                                 }
 							}
 						}
