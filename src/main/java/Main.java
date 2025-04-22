@@ -8,10 +8,13 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import command.Command;
+import command.CommandRegistry;
 import config.Config;
 import protocol.RESPParser;
 import rdb.RDBFileParser;
@@ -25,13 +28,14 @@ public class Main {
 	private static final String MASTER_REPLICATION_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
 	private static final int MASTER_REPLICATION_OFFSET = 0;
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		// You can use print statements as follows for debugging, they'll be visible
 		// when running tests.
 		System.out.println("Logs from your program will appear here!");
 
 		Config config = new Config(args);
 		DataStore store = new DataStore();
+		CommandRegistry cmdRegistry = new CommandRegistry();
 
 		// Load RDB file if it exists (new change)
 		String dir = config.get("dir");
@@ -126,44 +130,15 @@ public class Main {
 							List<String> commandParts = RESPParser.process(message);
 							if (!commandParts.isEmpty()) {
 								String command = commandParts.get(0);
+								Command cmd = cmdRegistry.getCommand(command);
 								if ("PING".equalsIgnoreCase(command) && commandParts.size() == 1) {
-									client.write(ByteBuffer.wrap("+PONG\r\n".getBytes()));
+									cmd.execute(client);
 								} else if ("ECHO".equalsIgnoreCase(command) && commandParts.size() == 2) {
-									String argument = commandParts.get(1);
-									String response = "$" + argument.length() + "\r\n" + argument + "\r\n";
-									client.write(ByteBuffer.wrap(response.getBytes()));
-								} else if ("SET".equalsIgnoreCase(command) && commandParts.size() == 3) {
-									String k = commandParts.get(1);
-									String v = commandParts.get(2);
-									store.set(k, v);
-									client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
-								} else if ("SET".equalsIgnoreCase(command) && "PX".equalsIgnoreCase(commandParts.get(3))
-										&& commandParts.size() == 5) {
-									String k = commandParts.get(1);
-									String v = commandParts.get(2);
-									String expTime = commandParts.get(4);
-
-									if (k == null || v == null || expTime == null) {
-										client.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
-									}
-
-									long timeMillis = Long.parseLong(expTime);
-
-									if (timeMillis <= 0) {
-										client.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
-									} else {
-										store.set(k, v, timeMillis);
-										client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
-									}
-								} else if ("GET".equalsIgnoreCase(command) && commandParts.size() == 2) {
-									String k = commandParts.get(1);
-									String v = (String) store.get(k);
-									if (v != null) {
-										String response = "$" + v.length() + "\r\n" + v + "\r\n";
-										client.write(ByteBuffer.wrap(response.getBytes()));
-									} else {
-										client.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
-									}
+									System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + command);
+									cmd.execute(client, commandParts);
+								}	
+								else if (Arrays.asList("SET", "GET").contains(command)) {			
+									cmd.execute(client, commandParts, store);
 								} else if ("CONFIG".equalsIgnoreCase(command) && commandParts.size() >= 3) {
 									if ("GET".equalsIgnoreCase(commandParts.get(1))) {
 										List<String> params = commandParts.subList(2, commandParts.size());
