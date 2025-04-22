@@ -134,8 +134,7 @@ public class Main {
 								if ("PING".equalsIgnoreCase(command) && commandParts.size() == 1) {
 									cmd.execute(client);
 								} else if ("ECHO".equalsIgnoreCase(command) && commandParts.size() == 2) {
-									System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + command);
-									cmd.execute(client, commandParts);
+ 									cmd.execute(client, commandParts);
 								}	
 								else if (Arrays.asList("SET", "GET").contains(command)) {			
 									cmd.execute(client, commandParts, store);
@@ -183,7 +182,9 @@ public class Main {
 									
 									String bulkString = "$" + response.length() + "\r\n" + response.toString() + "\r\n";
 									client.write(ByteBuffer.wrap(bulkString.toString().getBytes()));
-								}
+								} else if ("REPLCONF".equalsIgnoreCase(command)) {
+                                    client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
+                                }
 							}
 						}
 					}
