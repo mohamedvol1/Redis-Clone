@@ -25,8 +25,6 @@ public class Main {
 	private static final int CLEANUP_INTERVAL_MS = 100;
 	private static final int SAMPLE_SIZE = 20;
 	private static final int EXPIRY_THRESHOLD = 25;
-	private static final String MASTER_REPLICATION_ID = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb";
-	private static final int MASTER_REPLICATION_OFFSET = 0;
 
 	public static void main(String[] args) throws Exception {
 		// You can use print statements as follows for debugging, they'll be visible
@@ -35,7 +33,7 @@ public class Main {
 
 		Config config = new Config(args);
 		DataStore store = new DataStore();
-		CommandRegistry cmdRegistry = new CommandRegistry();
+		CommandRegistry cmdRegistry = new CommandRegistry(config);
 
 		// Load RDB file if it exists (new change)
 		String dir = config.get("dir");
@@ -52,17 +50,17 @@ public class Main {
 		} else {
 			System.out.println("RDB file not found, starting with an empty database.");
 		}
-		
+
 		String replicaof = config.get("replicaof");
-		
+
 		if (replicaof != null) {
 			String[] masterInfo = replicaof.split(" ");
-			 
+
 			if (masterInfo.length == 2) {
 				String host = masterInfo[0];
 				int port = Integer.parseInt(masterInfo[1]);
 				int replicaPort = Integer.parseInt(config.get("port"));
-				
+
 				connectToMaster(host, port, replicaPort);
 			} else {
 				System.out.println("Invalide replica formate. Expected: <host> <port>");
@@ -131,70 +129,31 @@ public class Main {
 							if (!commandParts.isEmpty()) {
 								String command = commandParts.get(0);
 								Command cmd = cmdRegistry.getCommand(command);
-								if ("PING".equalsIgnoreCase(command) && commandParts.size() == 1) {
-									cmd.execute(client);
-								} else if ("ECHO".equalsIgnoreCase(command) && commandParts.size() == 2) {
- 									cmd.execute(client, commandParts);
-								}	
-								else if (Arrays.asList("SET", "GET").contains(command)) {			
-									cmd.execute(client, commandParts, store);
-								} else if ("CONFIG".equalsIgnoreCase(command) && commandParts.size() >= 3) {
-									if ("GET".equalsIgnoreCase(commandParts.get(1))) {
-										List<String> params = commandParts.subList(2, commandParts.size());
-										StringBuilder response = new StringBuilder();
-										response.append("*").append(2 * params.size()).append("\r\n");
 
-										for (String param : params) {
-											String value = config.get(param);
-											if (value != null) {
-												response.append("$").append(param.length()).append("\r\n").append(param)
-														.append("\r\n");
-												response.append("$").append(value.length()).append("\r\n").append(value)
-														.append("\r\n");
-											} else {
-												// Error response
-												response.append("$-1\r\np");
-											}
+								if (cmd != null) {
+									try {
+										if ("PING".equalsIgnoreCase(command) && commandParts.size() == 1) {
+											cmd.execute(client);
+										} else if ("ECHO".equalsIgnoreCase(command) && commandParts.size() == 2) {
+											cmd.execute(client, commandParts);
+										} else if (Arrays.asList("SET", "GET", "KEYS").contains(command.toUpperCase())) {
+											cmd.execute(client, commandParts, store);
+										} else if (Arrays.asList("CONFIG", "INFO", "REPLCONF", "PSYNC").contains(command.toUpperCase())) {
+											cmd.execute(client, commandParts);
+										} else {
+											// Unknown command
+											String errorResponse = "-ERR unknown command '" + command + "'\r\n";
+											client.write(ByteBuffer.wrap(errorResponse.getBytes()));
 										}
-
-										client.write(ByteBuffer.wrap(response.toString().getBytes()));
+									} catch (Exception e) {
+										String errorResponse = "-ERR " + e.getMessage() + "\r\n";
+										client.write(ByteBuffer.wrap(errorResponse.getBytes()));
 									}
-								} else if ("KEYS".equalsIgnoreCase(command) && commandParts.size() == 2
-										&& "*".equals(commandParts.get(1))) {
-									List<String> keys = store.getAllKeys();
-									StringBuilder response = new StringBuilder();
-									response.append("*").append(keys.size()).append("\r\n");
-									for (String k : keys) {
-										response.append("$").append(k.length()).append("\r\n").append(k).append("\r\n");
-									}
-									client.write(ByteBuffer.wrap(response.toString().getBytes()));
-								} else if ("INFO".equalsIgnoreCase(command) && commandParts.size() == 2 && "replication".equalsIgnoreCase(commandParts.get(1))) {
-									String role = config.get("replicaof") != null ? "slave" : "master";  
-									StringBuilder response = new StringBuilder();
-									response.append("role:").append(role).append("\r\n");
-									
-									if ("master".equals(role)) {
-										response.append("master_replid:").append(MASTER_REPLICATION_ID);
-										response.append("master_repl_offset:").append(MASTER_REPLICATION_OFFSET);
-									}
-									
-									String bulkString = "$" + response.length() + "\r\n" + response.toString() + "\r\n";
-									client.write(ByteBuffer.wrap(bulkString.getBytes()));
-								} else if ("REPLCONF".equalsIgnoreCase(command)) {
-                                    client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
-                                } else if ("PSYNC".equalsIgnoreCase(command) && commandParts.size() == 3) {
-                                	String response = "+FULLRESYNC " + MASTER_REPLICATION_ID + " " + MASTER_REPLICATION_OFFSET + "\r\n";
-                                    client.write(ByteBuffer.wrap(response.getBytes()));
-
-                                    // Send an empty RDB file
-                                    byte[] emptyRDBFile = {
-                                        (byte) 0x52, (byte) 0x45, (byte) 0x44, (byte) 0x49, (byte) 0x53, (byte) 0x30, (byte) 0x30, (byte) 0x31, (byte) 0x31, // RDB header
-                                        (byte) 0xFF
-                                    };
-                                    String rdbHeader = "$" + emptyRDBFile.length + "\r\n";
-                                    client.write(ByteBuffer.wrap(rdbHeader.getBytes()));
-                                    client.write(ByteBuffer.wrap(emptyRDBFile));
-                                }
+								} else {
+									// Command not found in registry
+									String errorResponse = "-ERR unknown command '" + command + "'\r\n";
+									client.write(ByteBuffer.wrap(errorResponse.getBytes()));
+								}
 							}
 						}
 					}
@@ -221,11 +180,11 @@ public class Main {
 			}
 		}
 	}
-	
+
 	private static void connectToMaster(String host, int port, int replPort) {
 		try {
 			System.out.println("Connecting to master at " + host + ":" + port + " ...");
-			
+
 			// Send PING to master # 1
 			SocketChannel masterChannel = SocketChannel.open();
 			masterChannel.connect(new InetSocketAddress(host, port));
@@ -233,7 +192,7 @@ public class Main {
 			ByteBuffer pingBuffer = ByteBuffer.wrap(pingCommand.getBytes());
 			masterChannel.write(pingBuffer);
 			System.out.println("Sent PING to master");
-			
+
 			// Read PONG response from master
 			ByteBuffer responseBuffer = ByteBuffer.allocate(10240);
 			int bytesRead = masterChannel.read(responseBuffer);
@@ -241,42 +200,42 @@ public class Main {
 			String pingResponse = new String(responseBuffer.array(), 0, bytesRead);
 			System.out.println("Received reponse from master: " + pingResponse);
 			responseBuffer.clear();
-			
+
 			// Send REPLCONF with listening port # 2
 			String replPortString = String.valueOf(replPort);
 			String replConfCommand = "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$4\r\n" + replPortString + "\r\n";
 			ByteBuffer replConfBuffer = ByteBuffer.wrap(replConfCommand.getBytes());
 			masterChannel.write(replConfBuffer);
 			System.out.println("Sent REPLCONF with listening port to master");
-			
+
 			// Read REPLCONF response
 			bytesRead = masterChannel.read(responseBuffer);
 			responseBuffer.flip();
 			String replConfResponse = new String(responseBuffer.array(), 0, bytesRead);
 			System.out.println("Recieved response from master: " + replConfResponse);
 			responseBuffer.clear();
-			
+
 			// Send REPLCONF with capa psync2 arguments # 3
 			String replConfCapaCommand = "*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n";
 			ByteBuffer replConfCapaBuffer = ByteBuffer.wrap(replConfCapaCommand.getBytes());
 			masterChannel.write(replConfCapaBuffer);
 			System.out.println("Sent REPLCONF with capa psync2 arguments to master");
-			
+
 			// Read master response
 			bytesRead = masterChannel.read(responseBuffer);
 			responseBuffer.flip();
 			String replConfCapaResponse = new String(responseBuffer.array(), 0, bytesRead);
 			System.out.println("Recieved response from master: " + replConfCapaResponse);
-			
+
 			// Send PSYNC command
 			String psyncCommand = "*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n";
 			ByteBuffer psyncBuffer = ByteBuffer.wrap(psyncCommand.getBytes());
 			masterChannel.write(psyncBuffer);
 			System.out.println("Sent PSYNC command to master");
-			
+
 		} catch (IOException e) {
 			System.out.println("Faild to connect to master: " + e.getMessage());
 		}
-		
+
 	}
 }
