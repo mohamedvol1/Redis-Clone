@@ -153,9 +153,7 @@ public class Main {
 														.append("\r\n");
 											} else {
 												// Error response
-												response.append("$").append(param.length()).append("\r\n").append(param)
-														.append("\r\n");
-												response.append("$-1\r\n");
+												response.append("$-1\r\np");
 											}
 										}
 
@@ -181,12 +179,21 @@ public class Main {
 									}
 									
 									String bulkString = "$" + response.length() + "\r\n" + response.toString() + "\r\n";
-									client.write(ByteBuffer.wrap(bulkString.toString().getBytes()));
+									client.write(ByteBuffer.wrap(bulkString.getBytes()));
 								} else if ("REPLCONF".equalsIgnoreCase(command)) {
                                     client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
                                 } else if ("PSYNC".equalsIgnoreCase(command) && commandParts.size() == 3) {
                                 	String response = "+FULLRESYNC " + MASTER_REPLICATION_ID + " " + MASTER_REPLICATION_OFFSET + "\r\n";
                                     client.write(ByteBuffer.wrap(response.getBytes()));
+
+                                    // Send an empty RDB file
+                                    byte[] emptyRDBFile = {
+                                        (byte) 0x52, (byte) 0x45, (byte) 0x44, (byte) 0x49, (byte) 0x53, (byte) 0x30, (byte) 0x30, (byte) 0x31, (byte) 0x31, // RDB header
+                                        (byte) 0xFF
+                                    };
+                                    String rdbHeader = "$" + emptyRDBFile.length + "\r\n";
+                                    client.write(ByteBuffer.wrap(rdbHeader.getBytes()));
+                                    client.write(ByteBuffer.wrap(emptyRDBFile));
                                 }
 							}
 						}
