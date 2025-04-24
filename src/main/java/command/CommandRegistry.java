@@ -13,15 +13,15 @@ public class CommandRegistry {
 		registerCommand("SET", new SetCommand());
 		registerCommand("GET", new GetCommand());
 		registerCommand("ECHO", new EchoCommand());
+		registerCommand("KEYS", new KeysCommand());
+		registerCommand("REPLCONF", new ReplconfCommand());
+		registerCommand("PSYNC", new PsyncCommand());
 	}
 
 	public CommandRegistry(Config config) {
 		this();
 		registerCommand("CONFIG", new ConfigCommand(config));
-		registerCommand("KEYS", new KeysCommand());
 		registerCommand("INFO", new InfoCommand(config));
-		registerCommand("REPLCONF", new ReplconfCommand());
-		registerCommand("PSYNC", new PsyncCommand());
 	}
 
 	private void registerCommand(String name, Command command) {
