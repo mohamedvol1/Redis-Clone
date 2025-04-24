@@ -23,9 +23,6 @@ import rdb.RDBFileParser;
 import store.DataStore;
 import store.Entry;
 
-import static command.PsyncCommand.MASTER_REPLICATION_ID;
-import static command.PsyncCommand.MASTER_REPLICATION_OFFSET;
-
 public class Main {
     private static final int CLEANUP_INTERVAL_MS = 100;
     private static final int SAMPLE_SIZE = 20;
