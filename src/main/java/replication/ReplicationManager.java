@@ -92,7 +92,7 @@ public class ReplicationManager {
 
     public void handleMasterResponse(SocketChannel sc, String response) throws IOException {
 
-        System.out.println("\u001B[34mReceived response from master: " + response + "\u001B[0m");
+        System.out.println("\u001B[34mReceived response from master: " + handshakeState.toString() + "\u001B[0m");
 
         switch (handshakeState) {
             case WAIT_PONG:
@@ -133,6 +133,15 @@ public class ReplicationManager {
                 if (response.startsWith("+FULLRESYNC")) {
                     handshakeState = ReplicationState.REPLICATION_ACTIVE;
                     // here probably should be some logic to parse the RDB file sent by master
+
+                    // sometimes master sent GETACK request with final step of handshake (not only after activation)
+                    if (response.contains("REPLCONF") && response.contains("GETACK")) {
+                        System.out.println("\u001B[32mReceived REPLCONF GETACK command after RDB, responding with ACK\u001B[0m");
+                        String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n";
+                        sc.write(ByteBuffer.wrap(ackResponse.getBytes()));
+                    }
+
+
                 } else {
                     System.out.println("\u001B[31mUnexpected PSYNC response: " + response + "\u001B[0m");
                 }
@@ -145,6 +154,15 @@ public class ReplicationManager {
                 try {
                     System.out.println("\u001B[31mprocess master commands" + response + "\u001B[0m");
                     List<List<String>> commands = RESPParser.processBufferData(response);
+                    System.out.println("\u001B[33mParsed commands structure:\u001B[0m");
+                    for (int i = 0; i < commands.size(); i++) {
+                        System.out.println("\u001B[33mCommand " + (i + 1) + ":");
+                        List<String> command = commands.get(i);
+                        for (int j = 0; j < command.size(); j++) {
+                            System.out.println("  Arg " + j + ": " + command.get(j));
+                        }
+                    }
+                    
 
                     for (List<String> command : commands) {
                         String commandName = command.get(0);
@@ -154,6 +172,13 @@ public class ReplicationManager {
                             sc.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
                         }
 
+                        if ("REPLCONF".equalsIgnoreCase(commandName) && command.size() > 1 && "GETACK".equalsIgnoreCase(command.get(1))) {
+                            String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n";
+                            sc.write(ByteBuffer.wrap(ackResponse.getBytes()));
+                            continue;
+                        }
+
+                        // process the rest commands (only set commands for now)
                         String key = command.get(1);
                         String value = command.get(2);
 
