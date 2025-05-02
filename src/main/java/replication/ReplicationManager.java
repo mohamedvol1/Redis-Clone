@@ -133,12 +133,13 @@ public class ReplicationManager {
                 if (response.startsWith("+FULLRESYNC")) {
                     handshakeState = ReplicationState.REPLICATION_ACTIVE;
                     // here probably should be some logic to parse the RDB file sent by master
-
+                        System.out.println("\u001B[32m>>>>>>>>>>>>>>>>>>>>>>>>" + response + "\u001B[0m");
                     // sometimes master sent GETACK request with final step of handshake (not only after activation)
                     if (response.contains("REPLCONF") && response.contains("GETACK")) {
                         System.out.println("\u001B[32mReceived REPLCONF GETACK command after RDB, responding with ACK\u001B[0m");
                         String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n";
                         sc.write(ByteBuffer.wrap(ackResponse.getBytes()));
+
                     }
 
 
@@ -203,6 +204,8 @@ public class ReplicationManager {
                 }
                 break;
         }
+
+        return;
 
     }
 
