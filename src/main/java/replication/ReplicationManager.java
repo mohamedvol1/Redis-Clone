@@ -155,15 +155,6 @@ public class ReplicationManager {
                 try {
                     System.out.println("\u001B[31mprocess master commands" + response + "\u001B[0m");
                     List<List<String>> commands = RESPParser.processBufferData(response);
-                    System.out.println("\u001B[33mParsed commands structure:\u001B[0m");
-                    for (int i = 0; i < commands.size(); i++) {
-                        System.out.println("\u001B[33mCommand " + (i + 1) + ":");
-                        List<String> command = commands.get(i);
-                        for (int j = 0; j < command.size(); j++) {
-                            System.out.println("  Arg " + j + ": " + command.get(j));
-                        }
-                    }
-                    
 
                     for (List<String> command : commands) {
                         String commandName = command.get(0);

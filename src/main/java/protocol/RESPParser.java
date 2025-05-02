@@ -10,7 +10,6 @@ public class RESPParser {
     public static final byte PLUS_BYTE = '+';
     public static final byte MINUS_BYTE = '-';
     public static final byte COLON_BYTE = ':';
-    private static StringBuilder buffer = new StringBuilder();
 
     private RESPParser() {
         // this prevent the class from instantiation
@@ -70,13 +69,15 @@ public class RESPParser {
     }
 
     public static List<List<String>> processBufferData(String data) {
+        StringBuilder buffer = new StringBuilder();
+
         buffer.append(data);
 
         List<List<String>> commands = new ArrayList<>();
 
         while (!buffer.isEmpty()) {
             try {
-                int[] result = findCompleteCommand();
+                int[] result = findCompleteCommand(buffer);
                 if (result[0] == -1) {
                     break;
                 }
@@ -107,7 +108,7 @@ public class RESPParser {
         return commands;
     }
 
-    private static int[] findCompleteCommand() {
+    private static int[] findCompleteCommand(StringBuilder buffer) {
         if (buffer.length() < 3) {
             return new int[]{-1, 0};
         }
@@ -156,10 +157,6 @@ public class RESPParser {
             pos = cmdPartEndPos;
         }
         return new int[]{pos, arraySize};
-    }
-
-    public void clear() {
-        buffer.setLength(0);
     }
 
     private static List<String> processSimpleReply(String input) {
