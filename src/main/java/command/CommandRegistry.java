@@ -16,6 +16,7 @@ public class CommandRegistry {
 		registerCommand("KEYS", new KeysCommand());
 		registerCommand("REPLCONF", new ReplconfCommand());
 		registerCommand("PSYNC", new PsyncCommand());
+		registerCommand("WAIT", new WaitCommand());
 	}
 
 	public CommandRegistry(Config config) {
