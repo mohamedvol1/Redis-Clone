@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import config.Config;
+import replication.ReplicationManager;
 
 public class CommandRegistry {
 	private final Map<String, Command> commands = new HashMap<>();
@@ -16,13 +17,13 @@ public class CommandRegistry {
 		registerCommand("KEYS", new KeysCommand());
 		registerCommand("REPLCONF", new ReplconfCommand());
 		registerCommand("PSYNC", new PsyncCommand());
-		registerCommand("WAIT", new WaitCommand());
 	}
 
-	public CommandRegistry(Config config) {
+	public CommandRegistry(Config config, ReplicationManager replicationManager) {
 		this();
 		registerCommand("CONFIG", new ConfigCommand(config));
 		registerCommand("INFO", new InfoCommand(config));
+		registerCommand("WAIT", new WaitCommand(replicationManager));
 	}
 
 	private void registerCommand(String name, Command command) {

@@ -48,8 +48,8 @@ public class RedisServer {
         this.config = config;
         this.port = Integer.parseInt(config.get("port"));
         this.store = store;
-        this.commandRegistry = new CommandRegistry(config);
         this.replicationManager = new ReplicationManager(config, store);
+        this.commandRegistry = new CommandRegistry(config, replicationManager);
     }
 
     public void initialize() throws IOException {

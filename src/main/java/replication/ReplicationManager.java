@@ -279,4 +279,8 @@ public class ReplicationManager {
         replicaStates.remove(replica);
         activeReplicas.remove(replica);
     }
+
+    public int getActiveReplicasCount() {
+        return activeReplicas.size();
+    }
 }
