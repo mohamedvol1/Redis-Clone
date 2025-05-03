@@ -20,6 +20,8 @@ public class ReplicationManager {
     private final DataStore store;
     private Selector selector;
 
+    private long processedCommandOffset = 0;
+
     private SocketChannel masterConnection;
     private final Map<SocketChannel, ReplicationState> replicaStates = new HashMap<>();
 
@@ -84,9 +86,6 @@ public class ReplicationManager {
                 key.cancel();
                 masterConnection.close();
             }
-//        } else if (key.isReadable()) {
-//            handleMaterResponse(key);
-//        }
         }
     }
 
@@ -132,17 +131,14 @@ public class ReplicationManager {
             case WAIT_PSYNC:
                 if (response.startsWith("+FULLRESYNC")) {
                     handshakeState = ReplicationState.REPLICATION_ACTIVE;
-                    // here probably should be some logic to parse the RDB file sent by master
-                        System.out.println("\u001B[32m>>>>>>>>>>>>>>>>>>>>>>>>" + response + "\u001B[0m");
+                    // there probably should be some logic to parse the RDB file sent by master
                     // sometimes master sent GETACK request with final step of handshake (not only after activation)
                     if (response.contains("REPLCONF") && response.contains("GETACK")) {
                         System.out.println("\u001B[32mReceived REPLCONF GETACK command after RDB, responding with ACK\u001B[0m");
-                        String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n";
+                        String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$" + String.valueOf(processedCommandOffset).length() + "\r\n" + processedCommandOffset + "\r\n";
                         sc.write(ByteBuffer.wrap(ackResponse.getBytes()));
-
+                        processedCommandOffset += calculateCommandLength("*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n"); // we can just do +37 since this value wont changes but only for testing purposes
                     }
-
-
                 } else {
                     System.out.println("\u001B[31mUnexpected PSYNC response: " + response + "\u001B[0m");
                 }
@@ -160,13 +156,15 @@ public class ReplicationManager {
                         String commandName = command.get(0);
                         System.out.println("\u001B[32mExecuting command: " + commandName + "\u001B[0m");
 
-                        if (command.size() < 3) {
-                            sc.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
+                        if ("REPLCONF".equalsIgnoreCase(commandName) && command.size() > 1 && "GETACK".equalsIgnoreCase(command.get(1))) {
+                            String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$"  + String.valueOf(processedCommandOffset).length() +  "\r\n" + processedCommandOffset + "\r\n";
+                            sc.write(ByteBuffer.wrap(ackResponse.getBytes()));
+                            processedCommandOffset += calculateCommandLength("*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n");
+                            continue;
                         }
 
-                        if ("REPLCONF".equalsIgnoreCase(commandName) && command.size() > 1 && "GETACK".equalsIgnoreCase(command.get(1))) {
-                            String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n";
-                            sc.write(ByteBuffer.wrap(ackResponse.getBytes()));
+                        if ("PING".equalsIgnoreCase(commandName)) {
+                            processedCommandOffset += calculateCommandLength("*1\r\n$4\r\nPING\r\n");
                             continue;
                         }
 
@@ -183,8 +181,10 @@ public class ReplicationManager {
                             }
 
                             store.set(key, value, timeMillis);
+                            processedCommandOffset += calculateCommandLength(command);
                         } else if (command.size() == 3) {
                             store.set(key, value);
+                            processedCommandOffset += calculateCommandLength(command);
                         } else {
                             // to modified to be more descriptive (for replica)
                             sc.write(ByteBuffer.wrap("$-1\r\n".getBytes()));
@@ -197,7 +197,6 @@ public class ReplicationManager {
         }
 
         return;
-
     }
 
 
@@ -244,6 +243,29 @@ public class ReplicationManager {
             activeReplicas.add(replica);
         }
     }
+
+    private int calculateCommandLength(List<String> command) {
+        int length = 0;
+
+        // Calculate header length: *<num>\r\n
+        length += 1 + String.valueOf(command.size()).length() + 2;
+
+        // Calculate length for each argument
+        for (String arg : command) {
+            // $<length>\r\n
+            length += 1 + String.valueOf(arg.length()).length() + 2;
+            // argument + \r\n
+            length += arg.length() + 2;
+        }
+
+        return length;
+    }
+
+    private int calculateCommandLength(String rawCommand) {
+        return rawCommand.getBytes().length;
+    }
+
+
 
     public void removeReplica(SocketChannel replica) {
         replicaStates.remove(replica);
