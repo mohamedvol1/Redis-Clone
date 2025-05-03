@@ -150,6 +150,15 @@ public class ReplicationManager {
                 // TODO: to be refactored
                 try {
                     System.out.println("\u001B[31mprocess master commands" + response + "\u001B[0m");
+                    // Check if the response contains RDB data followed by commands
+                    if (response.contains("REDIS0011")) {
+                        // Extract and process any commands that come after the RDB data
+                        int asteriskPos = response.indexOf("*", response.indexOf("REDIS0011"));
+
+                        if (asteriskPos != -1) {
+                            response = response.substring(asteriskPos);
+                        }
+                    }
                     List<List<String>> commands = RESPParser.processBufferData(response);
 
                     for (List<String> command : commands) {
@@ -157,7 +166,7 @@ public class ReplicationManager {
                         System.out.println("\u001B[32mExecuting command: " + commandName + "\u001B[0m");
 
                         if ("REPLCONF".equalsIgnoreCase(commandName) && command.size() > 1 && "GETACK".equalsIgnoreCase(command.get(1))) {
-                            String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$"  + String.valueOf(processedCommandOffset).length() +  "\r\n" + processedCommandOffset + "\r\n";
+                            String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$" + String.valueOf(processedCommandOffset).length() + "\r\n" + processedCommandOffset + "\r\n";
                             sc.write(ByteBuffer.wrap(ackResponse.getBytes()));
                             processedCommandOffset += calculateCommandLength("*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n");
                             continue;
@@ -264,7 +273,6 @@ public class ReplicationManager {
     private int calculateCommandLength(String rawCommand) {
         return rawCommand.getBytes().length;
     }
-
 
 
     public void removeReplica(SocketChannel replica) {
