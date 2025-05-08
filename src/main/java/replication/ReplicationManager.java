@@ -2,6 +2,7 @@ package replication;
 
 import config.Config;
 import protocol.RESPParser;
+import replication.wait.WaitRequest;
 import store.DataStore;
 
 import java.io.IOException;
@@ -10,23 +11,28 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ReplicationManager {
     private final Config config;
     private final DataStore store;
     private Selector selector;
 
+    // only counts propagated commands on master and replicas
     private long processedCommandOffset = 0;
+    private final Map<SocketChannel, Long> replicaAcks = new HashMap<>();
+
+    // not used currently
+    // private long lastAckTime = 0;
+    // private static final long ACK_INTERVAL_MS = 1000;
+
 
     private SocketChannel masterConnection;
     private final Map<SocketChannel, ReplicationState> replicaStates = new HashMap<>();
 
-
     private final List<SocketChannel> activeReplicas = new ArrayList<>();
+
+    private final List<WaitRequest> pendingWaits = new ArrayList<>();
 
     public enum ReplicationState {
         CONNECTING,
@@ -72,12 +78,9 @@ public class ReplicationManager {
     public void initiateMasterReplication(SelectionKey key) throws IOException {
         if (handshakeState == ReplicationState.CONNECTING) {
             if (masterConnection.finishConnect()) { // make sure we are connected to the master
-                System.out.println("\u001B[32mConnected to master\u001B[0m");
-
                 // TODO: this code to be moved to PingCommand class and the same other commnads
                 String pingCommand = "*1\r\n$4\r\nPING\r\n"; // notice this is RESP array -> different from client to master
                 masterConnection.write(ByteBuffer.wrap(pingCommand.getBytes()));
-                System.out.println("\u001B[36mSent PING to master\u001B[0m");
 
                 handshakeState = ReplicationState.WAIT_PONG;
                 key.interestOps(SelectionKey.OP_READ);
@@ -90,9 +93,6 @@ public class ReplicationManager {
     }
 
     public void handleMasterResponse(SocketChannel sc, String response) throws IOException {
-
-        System.out.println("\u001B[34mReceived response from master: " + handshakeState.toString() + "\u001B[0m");
-
         switch (handshakeState) {
             case WAIT_PONG:
                 if (response.startsWith("+PONG")) {
@@ -100,7 +100,6 @@ public class ReplicationManager {
                     handshakeState = ReplicationState.WAIT_REPLCONF_PORT_REPLY;
                     String replConfCommand = "*3\r\n$8\r\nREPLCONF\r\n$14\r\nlistening-port\r\n$" + config.get("port").length() + "\r\n" + config.get("port") + "\r\n";
                     sc.write(ByteBuffer.wrap(replConfCommand.getBytes()));
-                    System.out.println("\u001B[35mSent REPLCONF with listening port to master\u001B[0m");
                 } else {
                     System.out.println("\u001B[31mReceived invalid PONG from master\u001B[0m");
                 }
@@ -111,7 +110,6 @@ public class ReplicationManager {
                     handshakeState = ReplicationState.WAIT_REPLCONF_CAPA_REPLY;
                     String replConfCapaCommand = "*3\r\n$8\r\nREPLCONF\r\n$4\r\ncapa\r\n$6\r\npsync2\r\n";
                     sc.write(ByteBuffer.wrap(replConfCapaCommand.getBytes()));
-                    System.out.println("\u001B[35mSent REPLCONF with capa psync2 arguments to master\u001B[0m");
                 } else {
                     System.out.println("\u001B[31mReceived invalid OK from master\u001B[0m");
                 }
@@ -122,7 +120,6 @@ public class ReplicationManager {
                     handshakeState = ReplicationState.WAIT_PSYNC;
                     String psyncCommand = "*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n";
                     sc.write(ByteBuffer.wrap(psyncCommand.getBytes()));
-                    System.out.println("\u001B[35mSent PSYNC to master\u001B[0m");
                 } else {
                     System.out.println("\u001B[31mReceived invalid OK from master\u001B[0m");
                 }
@@ -134,7 +131,6 @@ public class ReplicationManager {
                     // there probably should be some logic to parse the RDB file sent by master
                     // sometimes master sent GETACK request with final step of handshake (not only after activation)
                     if (response.contains("REPLCONF") && response.contains("GETACK")) {
-                        System.out.println("\u001B[32mReceived REPLCONF GETACK command after RDB, responding with ACK\u001B[0m");
                         String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$" + String.valueOf(processedCommandOffset).length() + "\r\n" + processedCommandOffset + "\r\n";
                         sc.write(ByteBuffer.wrap(ackResponse.getBytes()));
                         processedCommandOffset += calculateCommandLength("*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n"); // we can just do +37 since this value wont changes but only for testing purposes
@@ -145,11 +141,9 @@ public class ReplicationManager {
                 break;
 
             case REPLICATION_ACTIVE:
-                System.out.println("\u001B[31mmaster ready for propagation\u001B[0m");
                 // parse master commands and process them
                 // TODO: to be refactored
                 try {
-                    System.out.println("\u001B[31mprocess master commands" + response + "\u001B[0m");
                     // Check if the response contains RDB data followed by commands
                     if (response.contains("REDIS0011")) {
                         // Extract and process any commands that come after the RDB data
@@ -163,7 +157,6 @@ public class ReplicationManager {
 
                     for (List<String> command : commands) {
                         String commandName = command.get(0);
-                        System.out.println("\u001B[32mExecuting command: " + commandName + "\u001B[0m");
 
                         if ("REPLCONF".equalsIgnoreCase(commandName) && command.size() > 1 && "GETACK".equalsIgnoreCase(command.get(1))) {
                             String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$" + String.valueOf(processedCommandOffset).length() + "\r\n" + processedCommandOffset + "\r\n";
@@ -210,9 +203,14 @@ public class ReplicationManager {
 
 
     public void propagateCommand(List<String> commandParts) throws IOException {
+        // count propagated commands by master server
+        processedCommandOffset += calculateCommandLength(commandParts);
+
         if (activeReplicas.isEmpty()) {
             return;
         }
+
+
 
         // Format command in RESP protocol
         StringBuilder cmd = new StringBuilder();
@@ -230,13 +228,15 @@ public class ReplicationManager {
             }
             replica.write(respBuffer);
         }
-
     }
 
     public void setSelector(Selector selector) {
         this.selector = selector;
     }
 
+    public Selector getSelector() {
+        return this.selector;
+    }
 
     public SocketChannel getMasterConnection() {
         return this.masterConnection;
@@ -283,4 +283,103 @@ public class ReplicationManager {
     public int getActiveReplicasCount() {
         return activeReplicas.size();
     }
+
+//    public void sendPeriodicAckToMaster() throws IOException {
+//        System.out.println("\u001B[35m>>>>>>>>>>>>>sendPeriodicAckToMaster:");
+//        // Only do this if a replica and connected to a master
+//        if (masterConnection != null && handshakeState == ReplicationState.REPLICATION_ACTIVE) {
+//            long now = System.currentTimeMillis();
+//            if (now - lastAckTime >= ACK_INTERVAL_MS) {
+//                String ackResponse = "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$" +
+//                        String.valueOf(processedCommandOffset).length() +
+//                        "\r\n" + processedCommandOffset + "\r\n";
+//                masterConnection.write(ByteBuffer.wrap(ackResponse.getBytes()));
+//                lastAckTime = now;
+//                System.out.println("\u001B[35mSent periodic ACK to master with offset: " +
+//                        processedCommandOffset + "\u001B[0m");
+//            }
+//        }
+//    }
+
+    public long getCurrentCommandOffset() {
+        return processedCommandOffset;
+    }
+
+    public void handleReplicaAck(SocketChannel replica, long ackOffset) {
+        replicaAcks.put(replica, ackOffset);
+    }
+
+    public int countAcksForCommand(long commandOffset) {
+        int count = 0;
+        for (Long ackOffset : replicaAcks.values()) {
+            if (ackOffset >= commandOffset) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public void registerWait(SocketChannel client, int numReplicas, int timeout) {
+        System.out.println("\033[35m>>>>>> registerWait: " + numReplicas + " - " + timeout + "\033[0m");
+        long currentOffset = getCurrentCommandOffset();
+        System.out.println("\033[35m>>>>>> current offset (server): " + currentOffset + "\033[0m");
+        long deadline = timeout > 0 ? System.currentTimeMillis() + timeout : Long.MAX_VALUE;
+        pendingWaits.add(new WaitRequest(client, numReplicas, currentOffset, deadline));
+    }
+
+    public void processPendingWaits() {
+        System.out.println("\033[35m>>>>>> processPendingWaits: " + pendingWaits + "\033[0m");
+        if (pendingWaits.isEmpty()) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        Iterator<WaitRequest> itr = pendingWaits.iterator();
+
+        while (itr.hasNext()) {
+            WaitRequest wait = itr.next();
+            int ackedReplicas = countAcksForCommand(processedCommandOffset);
+            SocketChannel sc = wait.getClient();
+
+            // Check if we have enough acks or if we have timed out
+            if (wait.isExpired(now) || (ackedReplicas >= wait.getRequiredReplicas())) {
+                try {
+                    // Send the response with the number of acked replicas
+                    int numReplies = Math.min(ackedReplicas, wait.getRequiredReplicas());
+                    String response = ":" + numReplies + "\r\n";
+                    wait.getClient().write(ByteBuffer.wrap(response.getBytes()));
+                    itr.remove();
+                } catch (IOException e) {
+                    System.out.println("Error responding to WAIT command: " + e.getMessage());
+                    itr.remove();
+                }
+            }
+        }
+    }
+
+    public boolean hasWaitRequest(SocketChannel client) {
+        for (WaitRequest wait : pendingWaits) {
+            if (wait.getClient().equals(client)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void sendGetackToActiveSlaves() throws IOException {
+        String getackCommand = "*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n";
+        ByteBuffer getackBuffer = ByteBuffer.wrap(getackCommand.getBytes());
+
+        for (SocketChannel replica : activeReplicas) {
+            if (replica.isOpen()) { // Check if replica is still connected
+                if (getackBuffer.position() > 0) {
+                    getackBuffer.rewind(); // Reset buffer position
+                }
+                replica.write(getackBuffer);
+            }
+        }
+    }
+
+
+
 }

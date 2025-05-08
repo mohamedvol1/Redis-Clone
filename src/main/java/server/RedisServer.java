@@ -144,13 +144,13 @@ public class RedisServer {
                             String message = new String(buffer.array(), buffer.position(), bytesRead);
                             buffer.clear();
 
-                            System.out.println("\u001B[34mReceived response from master or client: " + message + "\u001B[0m");
-
                             // replica context (process commands coming from master)
                             if (sc.equals(replicationManager.getMasterConnection())) {
                                 replicationManager.handleMasterResponse(sc, message);
                                 continue;
                             }
+
+
                             // Parse and execute command
                             List<String> commandParts = RESPParser.process(message);
                             if (!commandParts.isEmpty()) {
@@ -165,13 +165,14 @@ public class RedisServer {
                                         } else if (cmdContext.get("partialCtx").contains(commandName.toUpperCase())) {
                                             cmd.execute(sc, commandParts);
 
-                                            // Handle replication state transitions
-                                            if ("REPLCONF".equalsIgnoreCase(commandName)) {
+                                            // Handle replication state transitions (replconf listening-port, capa, psync)
+                                            if ("REPLCONF".equalsIgnoreCase(commandName) && !"ACK".equalsIgnoreCase(commandParts.get(1))) { // this condition needs to be refactored
                                                 replicationManager.addReplica(sc);
                                                 replicationManager.updateReplicaState(sc, ReplicationManager.ReplicationState.WAIT_PSYNC);
                                             } else if ("PSYNC".equalsIgnoreCase(commandName)) {
                                                 replicationManager.updateReplicaState(sc, ReplicationManager.ReplicationState.REPLICATION_ACTIVE);
                                             }
+
                                         } else if (cmdContext.get("fullCtx").contains(commandName.toUpperCase())) {
                                             cmd.execute(sc, commandParts, store);
 
@@ -195,6 +196,19 @@ public class RedisServer {
                         }
                     }
                 }
+
+//                System.out.println("\033[35m>>>>>> while loop: \033[0m");
+//
+//                try {
+//                    if (config.get("replicaof") != null) { // replica server
+//                        replicationManager.sendPeriodicAckToMaster();
+//                    } else {
+//                        replicationManager.processPendingWaits(); // master server
+//                    }
+//                } catch (IOException e) {
+//                    System.out.println("Error in replication tasks: " + e.getMessage());
+//                }
+
 
                 // Clear processed keys
                 selector.selectedKeys().clear();

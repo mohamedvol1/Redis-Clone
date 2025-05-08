@@ -16,14 +16,12 @@ public class RESPParser {
     }
 
     public static List<String> process(String input) {
-        System.out.println("\u001B[31mprocess master command input" + input + "\u001B[0m");
         if (input.isEmpty()) {
             System.out.println("Error: Empty input!");
             return new ArrayList<>();
         }
 
         byte type = (byte) input.charAt(0);
-        System.out.println("\u001B[31mprocess master command type" + type + "\u001B[0m");
 
         switch (type) {
             case PLUS_BYTE:
@@ -36,10 +34,8 @@ public class RESPParser {
     }
 
     private static List<String> processMultiBulkReply(String input) {
-        System.out.println("\u001B[31mprocess master process array input" + input + "\u001B[0m");
         List<String> result = new ArrayList<>();
         String[] lines = input.split("\r\n");
-        System.out.println("\u001B[31mprocess master command lines" + lines.toString() + "\u001B[0m");
 
         int numeberOfElements = Integer.parseInt(lines[0].substring(1));
         int index = 1; // start after "*<num>" number array elements next element should start with
@@ -64,7 +60,6 @@ public class RESPParser {
             }
         }
 
-        System.out.println("\u001B[31mprocess master process result" + result.toString() + "\u001B[0m");
         return result;
     }
 

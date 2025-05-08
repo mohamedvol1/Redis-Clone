@@ -15,7 +15,6 @@ public class CommandRegistry {
 		registerCommand("GET", new GetCommand());
 		registerCommand("ECHO", new EchoCommand());
 		registerCommand("KEYS", new KeysCommand());
-		registerCommand("REPLCONF", new ReplconfCommand());
 		registerCommand("PSYNC", new PsyncCommand());
 	}
 
@@ -24,6 +23,7 @@ public class CommandRegistry {
 		registerCommand("CONFIG", new ConfigCommand(config));
 		registerCommand("INFO", new InfoCommand(config));
 		registerCommand("WAIT", new WaitCommand(replicationManager));
+		registerCommand("REPLCONF", new ReplconfCommand(replicationManager));
 	}
 
 	private void registerCommand(String name, Command command) {
