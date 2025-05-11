@@ -83,4 +83,7 @@ public class DataStore {
 		return keys;
 	}
 
+	public boolean exists(String key) {
+		return store.containsKey(key);
+	}
 }

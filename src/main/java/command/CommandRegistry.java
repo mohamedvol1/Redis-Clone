@@ -16,6 +16,7 @@ public class CommandRegistry {
 		registerCommand("ECHO", new EchoCommand());
 		registerCommand("KEYS", new KeysCommand());
 		registerCommand("PSYNC", new PsyncCommand());
+		registerCommand("TYPE", new TypeCommand());
 	}
 
 	public CommandRegistry(Config config, ReplicationManager replicationManager) {
