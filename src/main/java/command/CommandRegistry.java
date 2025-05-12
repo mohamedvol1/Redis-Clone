@@ -3,6 +3,7 @@ package command;
 import java.util.HashMap;
 import java.util.Map;
 
+import command.streams.XaddCommand;
 import config.Config;
 import replication.ReplicationManager;
 
@@ -17,6 +18,7 @@ public class CommandRegistry {
 		registerCommand("KEYS", new KeysCommand());
 		registerCommand("PSYNC", new PsyncCommand());
 		registerCommand("TYPE", new TypeCommand());
+		registerCommand("XADD", new XaddCommand());
 	}
 
 	public CommandRegistry(Config config, ReplicationManager replicationManager) {

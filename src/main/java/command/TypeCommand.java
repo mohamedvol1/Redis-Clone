@@ -18,7 +18,7 @@ public class TypeCommand implements Command {
         String type = DataType.NONE.toString();
 
         if (store.exists(key)) {
-            type = DataType.STRING.toString();
+            type = store.getDataType(key).toString();
         }
 
         String response = "+" + type + "\r\n";

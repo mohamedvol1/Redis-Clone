@@ -2,7 +2,8 @@ package store;
 
 public enum DataType {
     NONE,
-    STRING;
+    STRING,
+    STREAM;
 
     @Override
     public String toString() {
