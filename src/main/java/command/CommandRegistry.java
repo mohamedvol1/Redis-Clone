@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import command.streams.XaddCommand;
+import command.streams.XrangeCommand;
 import config.Config;
 import replication.ReplicationManager;
 
@@ -19,6 +20,7 @@ public class CommandRegistry {
 		registerCommand("PSYNC", new PsyncCommand());
 		registerCommand("TYPE", new TypeCommand());
 		registerCommand("XADD", new XaddCommand());
+		registerCommand("XRANGE", new XrangeCommand());
 	}
 
 	public CommandRegistry(Config config, ReplicationManager replicationManager) {

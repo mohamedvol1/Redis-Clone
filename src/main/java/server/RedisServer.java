@@ -28,10 +28,11 @@ public class RedisServer {
     private final CommandRegistry commandRegistry;
     private final ReplicationManager replicationManager;
 
+    // TODO: this needs to be refactored
     private static Map<String, List<String>> cmdContext = Map.of(
             "minimalCtx", Arrays.asList("PING"),
             "partialCtx", Arrays.asList("CONFIG", "INFO", "REPLCONF", "PSYNC", "ECHO", "WAIT"),
-            "fullCtx", Arrays.asList("SET", "GET", "KEYS", "TYPE", "XADD")
+            "fullCtx", Arrays.asList("SET", "GET", "KEYS", "TYPE", "XADD", "XRANGE")
     );
 
 

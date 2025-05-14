@@ -1,7 +1,6 @@
 package streams;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 public class Stream {
     private static final String completeId = "^\\d+-\\d+$";                    // 123-456
@@ -115,5 +114,48 @@ public class Stream {
         if (compareIDs(id, lastId) <= 0) {
             throw new IllegalArgumentException("ERR The ID specified in XADD is equal or smaller than the target stream top item");
         }
+    }
+
+    public List<StreamEntry> getEntriesInRange(String startId, String endId) {
+        // Handle special case for start ID without sequence
+        if (startId.matches("^\\d+$")) {
+            startId = startId + "-0";  // Default to sequence 0 for start
+        }
+
+        // Handle special case for end ID without sequence
+        if (endId.matches("^\\d+$")) {
+            // For end ID, use maximum sequence possible
+            endId = endId + "-" + Long.toString(Long.MAX_VALUE);  // Max 64-bit integer
+        }
+
+        // validate range
+        if (compareIDs(startId, endId) > 0) {
+            throw new IllegalArgumentException("ERR Invalid range specified: " + startId + "-" + endId);
+        }
+
+        // if start range is bigger that last entry then return empty list
+        if (compareIDs(startId, getLastEntryId()) > 0) {
+            return new ArrayList<>();
+        }
+
+        List<StreamEntry> entriesInRange = new ArrayList<>();
+        Iterator<Map.Entry<String, StreamEntry>> itr = entries.entrySet().iterator();
+
+        while (itr.hasNext()) {
+            Map.Entry<String, StreamEntry> entry = itr.next();
+            String id = entry.getKey();
+
+            if (compareIDs(id, startId) < 0) {
+                continue;
+            }
+
+            if (compareIDs(id, endId) > 0) {
+                break;
+            }
+            // add only entries from (start - end) inclusively
+            entriesInRange.add(entry.getValue());
+        }
+
+        return entriesInRange;
     }
 }
