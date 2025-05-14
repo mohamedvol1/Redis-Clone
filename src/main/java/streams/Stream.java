@@ -116,7 +116,7 @@ public class Stream {
         }
     }
 
-    public List<StreamEntry> getEntriesInRange(String startId, String endId) {
+    public List<StreamEntry> getEntriesInRange(String startId, String endId, boolean IsExclusiveStart) {
         if (startId.equals("-")) {
             startId = entries.keySet().stream().findFirst().orElse("0-0");
         }
@@ -149,9 +149,14 @@ public class Stream {
         List<StreamEntry> entriesInRange = new ArrayList<>();
         Iterator<Map.Entry<String, StreamEntry>> itr = entries.entrySet().iterator();
 
+
         while (itr.hasNext()) {
             Map.Entry<String, StreamEntry> entry = itr.next();
             String id = entry.getKey();
+
+            if (IsExclusiveStart && compareIDs(id, startId) <= 0) {
+                continue;
+            }
 
             if (compareIDs(id, startId) < 0) {
                 continue;
@@ -160,10 +165,19 @@ public class Stream {
             if (compareIDs(id, endId) > 0) {
                 break;
             }
-            // add only entries from (start - end) inclusively
+
             entriesInRange.add(entry.getValue());
         }
 
         return entriesInRange;
+    }
+
+    public List<StreamEntry> getInclusiveRange(String startId, String endId) {
+        return getEntriesInRange(startId, endId, false);
+    }
+
+    // this method returns result exclusively
+    public List<StreamEntry> getEntriesGreaterThan(String startId) {
+        return getEntriesInRange(startId, "+", true);
     }
 }

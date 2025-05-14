@@ -34,7 +34,7 @@ public class XrangeCommand implements Command {
 
 
         Stream stream = (Stream) store.get(key);
-        List<StreamEntry> entries = stream.getEntriesInRange(startId, endId);
+        List<StreamEntry> entries = stream.getInclusiveRange(startId, endId);
 
         if (entries.isEmpty()) {
             client.write(ByteBuffer.wrap("*0\r\n".getBytes()));

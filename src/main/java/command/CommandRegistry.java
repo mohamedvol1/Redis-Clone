@@ -5,6 +5,7 @@ import java.util.Map;
 
 import command.streams.XaddCommand;
 import command.streams.XrangeCommand;
+import command.streams.XreadCommand;
 import config.Config;
 import replication.ReplicationManager;
 
@@ -21,6 +22,7 @@ public class CommandRegistry {
 		registerCommand("TYPE", new TypeCommand());
 		registerCommand("XADD", new XaddCommand());
 		registerCommand("XRANGE", new XrangeCommand());
+		registerCommand("XREAD", new XreadCommand());
 	}
 
 	public CommandRegistry(Config config, ReplicationManager replicationManager) {
