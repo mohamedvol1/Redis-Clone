@@ -117,6 +117,14 @@ public class Stream {
     }
 
     public List<StreamEntry> getEntriesInRange(String startId, String endId) {
+        if (startId.equals("-")) {
+            startId = entries.keySet().stream().findFirst().orElse("0-0");
+        }
+        
+        if (endId.equals("+")) {
+            endId = getLastEntryId();
+        }
+        
         // Handle special case for start ID without sequence
         if (startId.matches("^\\d+$")) {
             startId = startId + "-0";  // Default to sequence 0 for start
