@@ -8,6 +8,7 @@ import command.streams.XrangeCommand;
 import command.streams.XreadCommand;
 import config.Config;
 import replication.ReplicationManager;
+import streams.manager.StreamManager;
 
 public class CommandRegistry {
 	private final Map<String, Command> commands = new HashMap<>();
@@ -22,15 +23,15 @@ public class CommandRegistry {
 		registerCommand("TYPE", new TypeCommand());
 		registerCommand("XADD", new XaddCommand());
 		registerCommand("XRANGE", new XrangeCommand());
-		registerCommand("XREAD", new XreadCommand());
 	}
 
-	public CommandRegistry(Config config, ReplicationManager replicationManager) {
+	public CommandRegistry(Config config, ReplicationManager replicationManager, StreamManager streamManager) {
 		this();
 		registerCommand("CONFIG", new ConfigCommand(config));
 		registerCommand("INFO", new InfoCommand(config));
 		registerCommand("WAIT", new WaitCommand(replicationManager));
 		registerCommand("REPLCONF", new ReplconfCommand(replicationManager));
+		registerCommand("XREAD", new XreadCommand(streamManager));
 	}
 
 	private void registerCommand(String name, Command command) {

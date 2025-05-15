@@ -28,6 +28,7 @@ public class Stream {
         validateEntryId(id);
         entry = new StreamEntry(id, entry.fields());
         entries.put(id, entry);
+        System.out.println("\u001B[35m>>>>(Stream) addEntry enteries : " + entries+ "\u001B[0m");
         return entry.id();
     }
 
@@ -149,6 +150,8 @@ public class Stream {
         List<StreamEntry> entriesInRange = new ArrayList<>();
         Iterator<Map.Entry<String, StreamEntry>> itr = entries.entrySet().iterator();
 
+        System.out.println("\u001B[35m>>>>(Stream) getEntriesInRange startId : " + startId+ "\u001B[0m");
+        System.out.println("\u001B[35m>>>>(Stream) getEntriesInRange enteries : " + entries+ "\u001B[0m");
 
         while (itr.hasNext()) {
             Map.Entry<String, StreamEntry> entry = itr.next();
@@ -168,6 +171,7 @@ public class Stream {
 
             entriesInRange.add(entry.getValue());
         }
+        System.out.println("\u001B[35m>>>>(Stream) result: " + entriesInRange+ "\u001B[0m");
 
         return entriesInRange;
     }
@@ -178,6 +182,7 @@ public class Stream {
 
     // this method returns result exclusively
     public List<StreamEntry> getEntriesGreaterThan(String startId) {
+        System.out.println("\u001B[35m>>>>(Stream) Getting entries greater than: " + startId + "\u001B[0m");
         return getEntriesInRange(startId, "+", true);
     }
 }

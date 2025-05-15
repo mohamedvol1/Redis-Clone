@@ -2,6 +2,7 @@ package store;
 
 import streams.Stream;
 import streams.StreamEntry;
+import streams.manager.StreamManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -104,7 +105,11 @@ public class DataStore {
         }
 
         StreamEntry se = new StreamEntry(id, fields);
-        return stream.addEntry(se);
+        String result = stream.addEntry(se);
+        StreamManager.notifyNewEntry(key, stream);
+
+        return result;
+
     }
 
     public DataType getDataType(String key) {

@@ -5,6 +5,7 @@ import store.DataStore;
 import store.DataType;
 import streams.Stream;
 import streams.StreamEntry;
+import streams.manager.StreamManager;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -14,6 +15,12 @@ import java.util.List;
 import java.util.Map;
 
 public class XreadCommand implements Command {
+    private final StreamManager streamManager;
+
+    public XreadCommand(StreamManager streamManager) {
+        this.streamManager = streamManager;
+    }
+
     @Override
     public void execute(SocketChannel client, List<String> commandParts, DataStore store) throws Exception {
         // Check if command has minimum required parts (XREAD STREAMS key1 id1)
@@ -21,7 +28,15 @@ public class XreadCommand implements Command {
             throw new Exception("ERR wrong number of arguments for 'XREAD' command");
         }
 
+        int blockTimeout = -1;  // -1 means non-blocking
         // Check if the command has the STREAMS keyword
+
+        // might not be too safe
+        if (commandParts.contains("block")) {
+            blockTimeout = Integer.parseInt(commandParts.get(commandParts.indexOf("block") + 1));
+        }
+
+
         int streamsKeywordIndex = -1;
         for (int i = 1; i < commandParts.size(); i++) {
             if ("STREAMS".equalsIgnoreCase(commandParts.get(i))) {
@@ -54,7 +69,7 @@ public class XreadCommand implements Command {
 
         // Map to store results for each stream
         Map<String, List<StreamEntry>> streamResults = new HashMap<>();
-
+        boolean anyEntries = false;
         // Process each stream and collect entries
         for (int i = 0; i < keys.size(); i++) {
             String key = keys.get(i);
@@ -75,6 +90,26 @@ public class XreadCommand implements Command {
             // XREAD is exclusive - only return entries with IDs greater than the provided ID
             List<StreamEntry> entries = stream.getEntriesGreaterThan(id);
             streamResults.put(key, entries);
+
+            // to avoid blocking if stream has entries
+            if (!entries.isEmpty()) {
+                anyEntries = true;
+            }
+
+        }
+
+        // register block request
+        if (blockTimeout > 0 && !anyEntries) {
+            for (int i = 0; i < keys.size(); i++) {
+                String key = keys.get(i);
+                String id = ids.get(i);
+                if (store.exists(key) && store.getDataType(key) == DataType.STREAM) {
+                    streamManager.addBlockRequest(client, key, id, blockTimeout);
+                }
+            }
+
+            // Don't send response now, it will be sent when entries arrive or timeout occurs
+            return;
         }
 
         // Build RESP response

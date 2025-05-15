@@ -8,6 +8,7 @@ import rdb.RDBFileParser;
 import replication.ReplicationManager;
 import store.DataStore;
 import store.Entry;
+import streams.manager.StreamManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +28,7 @@ public class RedisServer {
     private final DataStore store;
     private final CommandRegistry commandRegistry;
     private final ReplicationManager replicationManager;
+    private final StreamManager streamManager;
 
     // TODO: this needs to be refactored
     private static Map<String, List<String>> cmdContext = Map.of(
@@ -49,7 +51,8 @@ public class RedisServer {
         this.port = Integer.parseInt(config.get("port"));
         this.store = store;
         this.replicationManager = new ReplicationManager(config, store);
-        this.commandRegistry = new CommandRegistry(config, replicationManager);
+        this.streamManager = new StreamManager();
+        this.commandRegistry = new CommandRegistry(config, replicationManager, streamManager);
     }
 
     public void initialize() throws IOException {
@@ -99,6 +102,8 @@ public class RedisServer {
                     store.activeExpiryCycle(SAMPLE_SIZE, EXPIRY_THRESHOLD);
                     lastCleanupTime = currentTimeInMillis;
                 }
+
+                streamManager.processTimedOutRequests();
 
                 // Non-blocking select with timeout
                 if (selector.select(100) == 0) {
