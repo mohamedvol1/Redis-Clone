@@ -38,6 +38,9 @@ public class BlockingRequest {
     }
 
     public boolean isTimedOut() {
+        if (timeout == 0) {
+            return false; // never timeout, keep listening
+        }
         return System.currentTimeMillis() > creationTime + timeout;
     }
 }

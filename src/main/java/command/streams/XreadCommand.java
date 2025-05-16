@@ -10,7 +10,7 @@ import streams.manager.StreamManager;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -68,7 +68,7 @@ public class XreadCommand implements Command {
         }
 
         // Map to store results for each stream
-        Map<String, List<StreamEntry>> streamResults = new HashMap<>();
+        Map<String, List<StreamEntry>> streamResults = new LinkedHashMap<String, List<StreamEntry>>();
         boolean anyEntries = false;
         // Process each stream and collect entries
         for (int i = 0; i < keys.size(); i++) {
@@ -99,7 +99,7 @@ public class XreadCommand implements Command {
         }
 
         // register block request
-        if (blockTimeout > 0 && !anyEntries) {
+        if (blockTimeout >= 0 && !anyEntries) {
             for (int i = 0; i < keys.size(); i++) {
                 String key = keys.get(i);
                 String id = ids.get(i);
@@ -116,11 +116,11 @@ public class XreadCommand implements Command {
         StringBuilder response = new StringBuilder();
 
         // First array length - number of streams with entries
-        long streamsWithEntries = streamResults.entrySet().stream()
+        long streamsElementsCount = streamResults.entrySet().stream()
                 .filter(entry -> !entry.getValue().isEmpty())
                 .count();
 
-        response.append("*").append(streamsWithEntries).append("\r\n");
+        response.append("*").append(streamsElementsCount).append("\r\n");
 
         // For each stream with entries
         for (Map.Entry<String, List<StreamEntry>> streamEntry : streamResults.entrySet()) {
@@ -156,7 +156,7 @@ public class XreadCommand implements Command {
         }
 
         // If no stream has entries, return an empty array
-        if (streamsWithEntries == 0) {
+        if (streamsElementsCount == 0) {
             response = new StringBuilder("*0\r\n");
         }
 
