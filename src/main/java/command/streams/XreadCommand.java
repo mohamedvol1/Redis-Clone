@@ -70,6 +70,26 @@ public class XreadCommand implements Command {
         // Map to store results for each stream
         Map<String, List<StreamEntry>> streamResults = new LinkedHashMap<String, List<StreamEntry>>();
         boolean anyEntries = false;
+
+        // register block request
+        if (blockTimeout >= 0 && !anyEntries) {
+            for (int i = 0; i < keys.size(); i++) {
+                String key = keys.get(i);
+                String id = ids.get(i);
+                if (store.exists(key) && store.getDataType(key) == DataType.STREAM) {
+                    if (id.equals("$")) {
+                        Stream stream = (Stream) store.get(key);
+                        // capture the last id when request called
+                        id = stream.getLastEntryId();
+                    }
+                    streamManager.addBlockRequest(client, key, id, blockTimeout);
+                }
+            }
+
+            // Don't send response now, it will be sent when entries arrive or timeout occurs
+            return;
+        }
+
         // Process each stream and collect entries
         for (int i = 0; i < keys.size(); i++) {
             String key = keys.get(i);
@@ -98,19 +118,6 @@ public class XreadCommand implements Command {
 
         }
 
-        // register block request
-        if (blockTimeout >= 0 && !anyEntries) {
-            for (int i = 0; i < keys.size(); i++) {
-                String key = keys.get(i);
-                String id = ids.get(i);
-                if (store.exists(key) && store.getDataType(key) == DataType.STREAM) {
-                    streamManager.addBlockRequest(client, key, id, blockTimeout);
-                }
-            }
-
-            // Don't send response now, it will be sent when entries arrive or timeout occurs
-            return;
-        }
 
         // Build RESP response
         StringBuilder response = new StringBuilder();
