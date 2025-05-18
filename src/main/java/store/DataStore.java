@@ -30,6 +30,7 @@ public class DataStore {
         store.put(key, new Entry(value));
     }
 
+    // TODO: this method should return Entry Object (much cleaner)
     public Object get(String key) {
         Entry entry = store.get(key);
         if (entry == null) {
