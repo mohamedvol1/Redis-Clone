@@ -18,7 +18,9 @@ public class IncermentCommand implements Command {
 
         if (!store.exists(key)) {
             store.set(key, 1);
-            return; // for now
+            String response = ":1\r\n";
+            client.write(ByteBuffer.wrap(response.getBytes()));
+            return;
         }
 
         String value = (String) store.get(key);
