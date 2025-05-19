@@ -17,7 +17,7 @@ public class IncermentCommand implements Command {
         String key = commandParts.get(1);
 
         if (!store.exists(key)) {
-            store.set(key, 1);
+            store.set(key, "1");
             String response = ":1\r\n";
             client.write(ByteBuffer.wrap(response.getBytes()));
             return;
@@ -25,7 +25,7 @@ public class IncermentCommand implements Command {
 
         String value = (String) store.get(key);
         Integer IncrementedValue = Integer.parseInt(value) + 1;
-        store.set(key, value);
+        store.set(key, IncrementedValue.toString());
         String response = ":" + IncrementedValue + "\r\n";
 
         client.write(ByteBuffer.wrap(response.getBytes()));
