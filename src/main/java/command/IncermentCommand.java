@@ -24,10 +24,17 @@ public class IncermentCommand implements Command {
         }
 
         String value = (String) store.get(key);
-        Integer IncrementedValue = Integer.parseInt(value) + 1;
+        Long IncrementedValue;
+        try {
+            IncrementedValue = Long.parseLong(value) + 1;
+        } catch (Exception e) {
+            String err = "-ERR value is not an integer or out of range\r\n";
+            client.write(ByteBuffer.wrap(err.getBytes()));
+            return;
+        }
+
         store.set(key, IncrementedValue.toString());
         String response = ":" + IncrementedValue + "\r\n";
-
         client.write(ByteBuffer.wrap(response.getBytes()));
     }
 
