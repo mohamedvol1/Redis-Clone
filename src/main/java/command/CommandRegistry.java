@@ -24,6 +24,7 @@ public class CommandRegistry {
 		registerCommand("XADD", new XaddCommand());
 		registerCommand("XRANGE", new XrangeCommand());
 		registerCommand("INCR", new IncermentCommand());
+		registerCommand("MULTI", new MultiCommand());
 	}
 
 	public CommandRegistry(Config config, ReplicationManager replicationManager, StreamManager streamManager) {
