@@ -13,7 +13,7 @@ import replication.ReplicationManager;
 import streams.manager.StreamManager;
 
 public class CommandRegistry {
-	private final Map<String, Command> commands = new HashMap<>();
+	private static final Map<String, Command> commands = new HashMap<>();
 
 	public CommandRegistry() {
 		registerCommand("PING", new PingCommand());
@@ -43,7 +43,7 @@ public class CommandRegistry {
 		commands.put(name, command);
 	}
 
-    public Command getCommand(String name) {
+    public static Command getCommand(String name) {
         return commands.get(name.toUpperCase());
     }
 

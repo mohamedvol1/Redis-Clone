@@ -1,13 +1,18 @@
 package command.transactions;
 
 import command.Command;
+import command.CommandRegistry;
+import command.transactions.helper.CapturingSocketChannel;
 import store.DataStore;
 import transaction.TransactionManager;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
+
+import static server.RedisServer.cmdContext;
 
 public class ExecCommand implements Command {
     @Override
@@ -30,10 +35,31 @@ public class ExecCommand implements Command {
             return;
         }
 
-        // fetch the transaction queue (for the first client who called the command)
-        // execute the commands atomically (blocking other clients)
+        // collecting responses for queued commands
+        List<String> responses = new ArrayList<>();
+        SocketChannel sc = new CapturingSocketChannel(responses); // mock socket channel to capture responses
 
-        client.write(ByteBuffer.wrap("-ERR EXEC without MULTI\r\n".getBytes()));
+        for (List<String> command : transaction) {
+            String cmdName = command.get(0);
+            Command cmd = CommandRegistry.getCommand(cmdName);
+
+            if (cmdContext.get("minimalCtx").contains(cmdName.toUpperCase())) {
+                cmd.execute(sc);
+            } else if (cmdContext.get("partialCtx").contains(cmdName.toUpperCase())) {
+                cmd.execute(sc, command);
+            } else if (cmdContext.get("fullCtx").contains(cmdName.toUpperCase())) {
+                cmd.execute(sc, command, store);
+            }
+        }
+
+        StringBuilder arrayResponse = new StringBuilder();
+        arrayResponse.append("*").append(responses.size()).append("\r\n");
+        for (String response : responses) {
+            arrayResponse.append(response);
+        }
+
+        TransactionManager.removeTransaction(client);
+        client.write(ByteBuffer.wrap(arrayResponse.toString().getBytes()));
     }
 
     public void execute(SocketChannel client, List<String> commandParts) {

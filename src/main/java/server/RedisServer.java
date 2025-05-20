@@ -32,7 +32,7 @@ public class RedisServer {
     private final StreamManager streamManager;
 
     // TODO: this needs to be refactored
-    private static Map<String, List<String>> cmdContext = Map.of(
+    public static Map<String, List<String>> cmdContext = Map.of(
             "minimalCtx", Arrays.asList("PING"),
             "partialCtx", Arrays.asList("CONFIG", "INFO", "REPLCONF", "PSYNC", "ECHO", "WAIT"),
             "fullCtx", Arrays.asList("SET", "GET", "KEYS", "TYPE", "XADD", "XRANGE", "XREAD", "INCR", "MULTI", "EXEC")
