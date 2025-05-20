@@ -25,7 +25,11 @@ public class TransactionManager {
         }
     }
 
-    public static Queue<List<String>> removeQueuedCommands(SocketChannel client) {
+    public static Queue<List<String>> getTransaction(SocketChannel client) {
+        return transactionMap.get(client);
+    }
+
+    public static Queue<List<String>> removeTransaction(SocketChannel client) {
         return transactionMap.remove(client);
     }
 
