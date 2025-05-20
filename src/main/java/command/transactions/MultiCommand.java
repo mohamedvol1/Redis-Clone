@@ -1,25 +1,26 @@
-package command;
+package command.transactions;
 
+import command.Command;
 import store.DataStore;
+import transaction.TransactionManager;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayDeque;
 import java.util.List;
-import java.util.Queue;
 
 public class MultiCommand implements Command {
-    private final Queue<List<String>> commandsQueue;
-
-    public MultiCommand() {
-        this.commandsQueue = new ArrayDeque<>();
-    }
 
     @Override
     public void execute(SocketChannel client, List<String> commandParts, DataStore store) throws Exception {
         if (commandParts.size() != 1) {
             throw new Exception("ERR wrong number of arguments for 'MULTI' command");
         }
+
+        if (TransactionManager.isInTransaction(client)) {
+            throw new Exception("ERR already in multi mode");
+        }
+
+        TransactionManager.startTransaction(client);
 
         client.write(ByteBuffer.wrap("+OK\r\n".getBytes()));
     }

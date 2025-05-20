@@ -34,7 +34,7 @@ public class RedisServer {
     private static Map<String, List<String>> cmdContext = Map.of(
             "minimalCtx", Arrays.asList("PING"),
             "partialCtx", Arrays.asList("CONFIG", "INFO", "REPLCONF", "PSYNC", "ECHO", "WAIT"),
-            "fullCtx", Arrays.asList("SET", "GET", "KEYS", "TYPE", "XADD", "XRANGE", "XREAD", "INCR", "MULTI")
+            "fullCtx", Arrays.asList("SET", "GET", "KEYS", "TYPE", "XADD", "XRANGE", "XREAD", "INCR", "MULTI", "EXEC")
     );
 
 
