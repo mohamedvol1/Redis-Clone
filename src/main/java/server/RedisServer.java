@@ -9,6 +9,7 @@ import replication.ReplicationManager;
 import store.DataStore;
 import store.Entry;
 import streams.manager.StreamManager;
+import transaction.TransactionManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -164,6 +165,13 @@ public class RedisServer {
 
                                 if (cmd != null) {
                                     try {
+                                        // check if client is in multi mode (command wont be executed just queued in connection transaction)
+                                        if (TransactionManager.isInTransaction(sc) && !"MULTI".equalsIgnoreCase(commandName) && !"EXEC".equalsIgnoreCase(commandName)) {
+                                            TransactionManager.queueCommand(sc, commandParts);
+                                            sc.write(ByteBuffer.wrap("+QUEUED\r\n".getBytes()));
+                                            continue;
+                                        }
+
                                         // Execute command based on its context requirements
                                         if (cmdContext.get("minimalCtx").contains(commandName.toUpperCase())) {
                                             cmd.execute(sc);
