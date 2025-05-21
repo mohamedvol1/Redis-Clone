@@ -33,7 +33,7 @@ public class RedisServer {
 
     // TODO: this needs to be refactored
     public static Map<String, List<String>> cmdContext = Map.of(
-            "minimalCtx", Arrays.asList("PING"),
+            "minimalCtx", Arrays.asList("PING", "DISCARD"),
             "partialCtx", Arrays.asList("CONFIG", "INFO", "REPLCONF", "PSYNC", "ECHO", "WAIT"),
             "fullCtx", Arrays.asList("SET", "GET", "KEYS", "TYPE", "XADD", "XRANGE", "XREAD", "INCR", "MULTI", "EXEC")
     );
@@ -166,7 +166,10 @@ public class RedisServer {
                                 if (cmd != null) {
                                     try {
                                         // check if client is in multi mode (command wont be executed just queued in connection transaction)
-                                        if (TransactionManager.isInTransaction(sc) && !"MULTI".equalsIgnoreCase(commandName) && !"EXEC".equalsIgnoreCase(commandName)) {
+                                        if (TransactionManager.isInTransaction(sc) &&
+                                                !"MULTI".equalsIgnoreCase(commandName) &&
+                                                !"EXEC".equalsIgnoreCase(commandName) &&
+                                                !"DISCARD".equalsIgnoreCase(commandName)) {
                                             TransactionManager.queueCommand(sc, commandParts);
                                             sc.write(ByteBuffer.wrap("+QUEUED\r\n".getBytes()));
                                             continue;

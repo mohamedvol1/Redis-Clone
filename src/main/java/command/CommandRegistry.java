@@ -6,6 +6,7 @@ import java.util.Map;
 import command.streams.XaddCommand;
 import command.streams.XrangeCommand;
 import command.streams.XreadCommand;
+import command.transactions.DiscardCommand;
 import command.transactions.ExecCommand;
 import command.transactions.MultiCommand;
 import config.Config;
@@ -28,6 +29,7 @@ public class CommandRegistry {
 		registerCommand("INCR", new IncermentCommand());
 		registerCommand("MULTI", new MultiCommand());
 		registerCommand("EXEC", new ExecCommand());
+		registerCommand("DISCARD", new DiscardCommand());
 	}
 
 	public CommandRegistry(Config config, ReplicationManager replicationManager, StreamManager streamManager) {
